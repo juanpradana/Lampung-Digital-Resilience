@@ -18,9 +18,15 @@ Sistem monitoring gangguan internet dan infrastruktur digital di wilayah Provins
 │  │            STATUS AGGREGATION ENGINE                │  │
 │  │   Combined = Social(40%) + Infra(40%) +            │  │
 │  │              Disaster(20%)                          │  │
-│  └──┬──────────────────┬──────────────────┬───────────┘  │
-└─────┼──────────────────┼──────────────────┼──────────────┘
-      │                  │                  │
+│  └──────────────────────┬────────────────────────────┘  │
+│                         │ read-only                      │
+│  ┌──────────────────────┴────────────────────────────┐  │
+│  │          DATA STORE (Server-Side Cache)            │  │
+│  │  Background thread auto-fetch setiap N menit      │  │
+│  │  Client TIDAK trigger fetch — hanya baca cache    │  │
+│  └──┬──────────────────┬──────────────────┬──────────┘  │
+└─────┼──────────────────┼──────────────────┼─────────────┘
+      │ fetch             │ fetch             │ fetch
 ┌─────┴──────┐  ┌───────┴────────┐  ┌──────┴─────────┐
 │ Module A   │  │ Module B       │  │ Module C       │
 │ Social     │  │ Disaster       │  │ Infrastructure │
@@ -49,6 +55,7 @@ Lampung-Digital-Resilience/
 │
 ├── modules/
 │   ├── __init__.py
+│   ├── data_store.py               # Server-side cache + background auto-refresh
 │   ├── bmkg_client.py              # Client API BMKG (gempa + cuaca)
 │   ├── scraper.py                  # Google News RSS + Google Search
 │   ├── nlp_processor.py            # NLP/NER + sentiment analysis
@@ -163,6 +170,31 @@ Combined Score = (Social Score x 0.4) + (Infra Score x 0.4) + (Disaster Score x 
 | **CRITICAL** | 🔴 Merah | Score < 30, atau Social < 40 + (Bencana / Infra Down) |
 | **WARNING** | 🟡 Kuning | Score < 60, atau Social < 60, atau Infra < 60 |
 | **NORMAL** | 🟢 Hijau | Score >= 60, semua indikator baik |
+
+## 🔄 Server-Side Auto-Refresh
+
+Data di-fetch secara otomatis oleh **background thread di sisi server**, bukan oleh request client.
+
+```
+┌─────────────────────────────────────────────────┐
+│              DataStore (Singleton)               │
+│                                                 │
+│  Background Thread ──(setiap N menit)──→ Fetch  │
+│       │                                         │
+│       ▼                                         │
+│  [In-Memory Cache] ←── atomic swap (Lock)       │
+│       │                                         │
+│       ├──→ Client A  (read-only, instant)       │
+│       ├──→ Client B  (read-only, instant)       │
+│       └──→ Client C  (read-only, instant)       │
+└─────────────────────────────────────────────────┘
+```
+
+**Keuntungan:**
+- **Tidak ada spam traffic** — client tidak pernah trigger fetch ke sumber data
+- **Thread-safe** — data di-swap secara atomic menggunakan `threading.Lock`
+- **Configurable** — interval bisa diubah via sidebar (3 / 5 / 10 / 15 menit)
+- **Fault-tolerant** — jika fetch gagal, data lama tetap tersedia
 
 ## 📦 Tech Stack
 

@@ -10,13 +10,10 @@ Jalankan: streamlit run app.py
 import streamlit as st
 import pandas as pd
 import folium
-import json
 from datetime import datetime
 from streamlit_folium import st_folium
 
-from modules.social_signal import fetch_social_signals, aggregate_by_kecamatan, get_social_score
-from modules.disaster_correlation import get_combined_disaster_risk
-from modules.infra_probing import probe_anchors, aggregate_probe_by_kecamatan, get_infra_score
+from modules.data_store import DataStore
 from utils.mock_data import KECAMATAN_DB, generate_geojson_lampung
 
 # ============================================================
@@ -117,33 +114,28 @@ st.markdown("""
 
 
 # ============================================================
-# Data Loading (cached)
+# Data Store (server-side background refresh)
 # ============================================================
-@st.cache_data(ttl=60)
-def load_all_data():
-    """Muat semua data dari ketiga modul."""
-    # Module A: Social Signals (REAL - Google News RSS + Google Search)
-    social_signals = fetch_social_signals()
-    social_agg = aggregate_by_kecamatan(social_signals)
-    social_scores = get_social_score(social_agg)
+# Interval refresh default: 5 menit (300 detik)
+REFRESH_INTERVAL_OPTIONS = {
+    "3 menit": 180,
+    "5 menit": 300,
+    "10 menit": 600,
+    "15 menit": 900,
+}
+DEFAULT_INTERVAL_LABEL = "5 menit"
 
-    # Module B: Disaster Correlation (REAL - BMKG API)
-    disaster_data = get_combined_disaster_risk()
 
-    # Module C: Infrastructure Probing (REAL - ICMP Ping)
-    probe_results = probe_anchors()
-    probe_agg = aggregate_probe_by_kecamatan(probe_results)
-    infra_scores = get_infra_score(probe_agg)
-
-    return {
-        "social_signals": social_signals,
-        "social_agg": social_agg,
-        "social_scores": social_scores,
-        "disaster_data": disaster_data,
-        "probe_results": probe_results,
-        "probe_agg": probe_agg,
-        "infra_scores": infra_scores,
-    }
+@st.cache_resource
+def get_data_store():
+    """
+    Inisialisasi DataStore singleton (sekali saja, persist antar session).
+    Background thread akan fetch data secara periodik.
+    Client TIDAK pernah trigger fetch — hanya baca dari cache.
+    """
+    return DataStore(
+        refresh_interval=REFRESH_INTERVAL_OPTIONS[DEFAULT_INTERVAL_LABEL]
+    )
 
 
 def compute_kecamatan_status(data):
@@ -294,13 +286,42 @@ def main():
         unsafe_allow_html=True,
     )
 
+    # Inisialisasi DataStore (singleton, background thread)
+    store = get_data_store()
+
     # Sidebar
     with st.sidebar:
         st.markdown("## 🏛️ Prov. Lampung")
-        st.markdown("### ⚙️ Pengaturan")
 
-        if st.button("🔄 Refresh Data", use_container_width=True, type="primary"):
-            st.cache_data.clear()
+        # --- Auto-Refresh Status ---
+        st.markdown("### 🔄 Auto-Refresh")
+        status = store.get_status()
+
+        if status["is_fetching"]:
+            st.info("⏳ Sedang mengambil data...")
+        elif status["last_error"]:
+            st.error(f"❌ Error: {status['last_error']}")
+        else:
+            st.success("✅ Data tersedia")
+
+        if status["last_refresh"]:
+            local_last = status["last_refresh"].astimezone()
+            st.caption(f"Terakhir diperbarui: **{local_last.strftime('%H:%M:%S')}**")
+        if status["next_refresh"]:
+            local_next = status["next_refresh"].astimezone()
+            st.caption(f"Refresh berikutnya: **{local_next.strftime('%H:%M:%S')}**")
+        st.caption(f"Total fetch: **{status['fetch_count']}x**")
+
+        # Interval selector
+        interval_label = st.selectbox(
+            "Interval Refresh",
+            options=list(REFRESH_INTERVAL_OPTIONS.keys()),
+            index=list(REFRESH_INTERVAL_OPTIONS.keys()).index(DEFAULT_INTERVAL_LABEL),
+        )
+        new_interval = REFRESH_INTERVAL_OPTIONS[interval_label]
+        if new_interval != status["refresh_interval"]:
+            store.set_refresh_interval(new_interval)
+            st.toast(f"Interval diubah ke {interval_label}")
 
         st.markdown("---")
         st.markdown("### 📊 Filter")
@@ -315,10 +336,16 @@ def main():
             "**data bencana alam BMKG**, dan **active network probing** "
             "untuk menyimpulkan status konektivitas internet di Lampung."
         )
-        st.markdown(f"*Terakhir diperbarui: {datetime.now().strftime('%H:%M:%S')}*")
+        st.markdown(
+            "*Data di-refresh otomatis oleh server. "
+            "Client hanya membaca dari cache.*"
+        )
 
-    # Load data
-    data = load_all_data()
+    # Baca data dari cache (TIDAK trigger fetch)
+    data = store.get_data()
+    if data is None:
+        st.warning("⏳ Data sedang dimuat untuk pertama kali, silakan tunggu...")
+        st.stop()
     statuses = compute_kecamatan_status(data)
 
     # ---- Metrics Row ----
