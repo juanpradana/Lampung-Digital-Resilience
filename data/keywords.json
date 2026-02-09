@@ -1,0 +1,35 @@
+{
+    "digital_issue_keywords": [
+        "internet", "wifi", "sinyal", "jaringan", "koneksi", "bandwidth",
+        "indihome", "biznet", "telkomsel", "xl", "smartfren", "tri", "axis",
+        "fiber", "modem", "router", "gangguan", "down", "lemot", "putus",
+        "disconnect", "timeout", "buffering", "lag", "ping", "rto",
+        "tidak bisa akses", "tidak konek", "mati total", "error",
+        "provider", "isp", "fmc", "ftth", "4g", "5g", "lte"
+    ],
+    "non_digital_keywords": [
+        "jalan rusak", "jalan berlubang", "banjir jalan", "macet",
+        "air mati", "pipa bocor", "sampah", "pohon tumbang",
+        "longsor", "kebakaran", "kecelakaan"
+    ],
+    "power_outage_keywords": [
+        "mati lampu", "listrik mati", "listrik padam", "pemadaman",
+        "pln", "gardu", "trafo", "voltase", "tegangan"
+    ],
+    "provider_keywords": {
+        "Indihome": ["indihome", "indi", "telkom fiber", "speedy"],
+        "Biznet": ["biznet", "biz net"],
+        "Telkomsel": ["telkomsel", "tsel", "simpati", "as", "halo"],
+        "XL": ["xl", "xl axiata", "axis"],
+        "Smartfren": ["smartfren", "smart fren"],
+        "Tri": ["tri", "3", "bima"],
+        "PLN": ["pln", "listrik", "mati lampu"],
+        "MyRepublic": ["myrepublic", "my republic"],
+        "FirstMedia": ["firstmedia", "first media", "fm"]
+    },
+    "severity_keywords": {
+        "critical": ["mati total", "rto", "down", "tidak bisa", "padam"],
+        "warning": ["lemot", "lambat", "gangguan", "putus nyambung", "buffering"],
+        "normal": ["lancar", "normal", "bagus", "stabil", "cepat"]
+    }
+}
