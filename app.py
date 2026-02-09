@@ -30,20 +30,20 @@ st.set_page_config(
 )
 
 # ============================================================
-# Custom CSS
+# Custom CSS — universal (works on both light & dark themes)
 # ============================================================
 st.markdown("""
 <style>
     .main-header {
         font-size: 2rem;
         font-weight: 700;
-        color: #1E3A5F;
+        color: inherit;
         text-align: center;
         padding: 0.5rem 0;
     }
     .sub-header {
         font-size: 1rem;
-        color: #6B7280;
+        opacity: 0.7;
         text-align: center;
         margin-bottom: 1.5rem;
     }
@@ -53,17 +53,19 @@ st.markdown("""
         border-radius: 12px;
         color: white;
         text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.15);
     }
     .metric-card h3 {
         margin: 0;
         font-size: 2rem;
         font-weight: 700;
+        color: white !important;
     }
     .metric-card p {
         margin: 0.3rem 0 0 0;
         font-size: 0.85rem;
         opacity: 0.9;
+        color: white !important;
     }
     .status-green {
         background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
@@ -78,17 +80,21 @@ st.markdown("""
         padding: 0.6rem 0.8rem;
         margin: 0.3rem 0;
         border-left: 4px solid #667eea;
-        background: #f8f9fa;
+        background: rgba(128, 128, 128, 0.1);
+        color: inherit;
         border-radius: 0 8px 8px 0;
         font-size: 0.85rem;
     }
+    .ticker-item b, .ticker-item small {
+        color: inherit;
+    }
     .ticker-critical {
         border-left-color: #eb3349;
-        background: #fff5f5;
+        background: rgba(235, 51, 73, 0.12);
     }
     .ticker-warning {
         border-left-color: #F2994A;
-        background: #fffbf0;
+        background: rgba(242, 153, 74, 0.12);
     }
     .disaster-badge {
         display: inline-block;
@@ -98,9 +104,14 @@ st.markdown("""
         font-weight: 600;
         margin: 0.1rem;
     }
-    .badge-high { background: #fee2e2; color: #991b1b; }
-    .badge-medium { background: #fef3c7; color: #92400e; }
-    .badge-low { background: #dbeafe; color: #1e40af; }
+    .badge-high { background: #dc2626; color: #ffffff; }
+    .badge-medium { background: #d97706; color: #ffffff; }
+    .badge-low { background: #2563eb; color: #ffffff; }
+    .app-footer {
+        text-align: center;
+        opacity: 0.5;
+        font-size: 0.8rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -255,16 +266,16 @@ def build_map(statuses, data):
     # Legend
     legend_html = """
     <div style="position: fixed; bottom: 30px; left: 30px; z-index: 1000;
-                background: white; padding: 12px 16px; border-radius: 8px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.2); font-size: 13px;">
+                background: rgba(30,30,30,0.9); padding: 12px 16px; border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.4); font-size: 13px; color: #e2e8f0;">
         <b>Status Konektivitas</b><br>
         <span style="color: #38ef7d;">&#9632;</span> Normal<br>
         <span style="color: #F2994A;">&#9632;</span> Warning<br>
         <span style="color: #eb3349;">&#9632;</span> Critical<br>
         <br><b>Anchor Points</b><br>
-        <span style="color: green;">&#9679;</span> OK &nbsp;
-        <span style="color: orange;">&#9679;</span> High Latency &nbsp;
-        <span style="color: red;">&#9679;</span> RTO
+        <span style="color: #38ef7d;">&#9679;</span> OK &nbsp;
+        <span style="color: #F2994A;">&#9679;</span> High Latency &nbsp;
+        <span style="color: #eb3349;">&#9679;</span> RTO
     </div>
     """
     m.get_root().html.add_child(folium.Element(legend_html))
@@ -414,10 +425,10 @@ def main():
 
         def color_status(val):
             if val == "CRITICAL":
-                return "background-color: #fee2e2; color: #991b1b; font-weight: bold"
+                return "background-color: #dc2626; color: #ffffff; font-weight: bold"
             elif val == "WARNING":
-                return "background-color: #fef3c7; color: #92400e; font-weight: bold"
-            return "background-color: #d1fae5; color: #065f46"
+                return "background-color: #d97706; color: #ffffff; font-weight: bold"
+            return "background-color: #059669; color: #ffffff"
 
         styled = df_status.style.map(color_status, subset=["Status"])
         st.dataframe(styled, use_container_width=True, height=400)
@@ -554,10 +565,10 @@ def main():
 
                     def color_probe_status(val):
                         if val == "DOWN":
-                            return "background-color: #fee2e2; color: #991b1b; font-weight: bold"
+                            return "background-color: #dc2626; color: #ffffff; font-weight: bold"
                         elif val == "DEGRADED":
-                            return "background-color: #fef3c7; color: #92400e; font-weight: bold"
-                        return "background-color: #d1fae5; color: #065f46"
+                            return "background-color: #d97706; color: #ffffff; font-weight: bold"
+                        return "background-color: #059669; color: #ffffff"
 
                     styled_probe = df_probe.style.map(color_probe_status, subset=["Status"])
                     st.dataframe(styled_probe, use_container_width=True)
@@ -580,7 +591,7 @@ def main():
     # Footer
     st.markdown("---")
     st.markdown(
-        '<div style="text-align: center; color: #9CA3AF; font-size: 0.8rem;">'
+        '<div class="app-footer">'
         "Lampung Digital Resilience Monitor v2.0 | Real-time OSINT Data | "
         "BMKG API + Google News RSS + ICMP Ping"
         "</div>",
